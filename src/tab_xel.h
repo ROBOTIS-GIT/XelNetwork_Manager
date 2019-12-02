@@ -21,6 +21,7 @@ public:
 
   int      dxl_table_length;
   int      dxl_baud_index;
+  int      dxl_protocol_index;
   bool     dxl_write_enable;
   QString  dxl_port_string;
   QString  dxl_id_string;
@@ -29,6 +30,7 @@ public:
   void setDxlPortString(QString port_string);
   void setDxlIdString(QString id_string);
   void setDxlBaudIdnex(int buad_index);
+  void setDxlProtocolIdnex(int protocol_index);
   void drawControlTable(int model_num);
 
   QString getControlValueString(uint8_t *p_data, QString type_string);
@@ -40,14 +42,18 @@ private slots:
   void on_buttonPing_clicked();
   void on_buttonReadData_clicked();
   void on_buttonUpload_clicked();
-  void on_lineEdit_port_textChanged(const QString &arg1);
+  void on_buttonPortRefresh_clicked();
+  //void on_lineEdit_port_textChanged(const QString &arg1);
   void on_lineEdit_id_textChanged(const QString &arg1);
+  void on_comboBoxSerialPort_currentTextChanged(const QString &arg1);
   void on_comboBox_baudrate_currentIndexChanged(int index);
+  void on_comboBoxProtocolVersion_currentIndexChanged(int index);
   void on_tableWidget_cellChanged(int row, int column);
   void on_tableWidget_ID_doubleClicked(const QModelIndex &index);
-  void on_updateDataType(int index);
+  void on_updateMsgType(int index);
   void on_updateBaudrate(int index);
-  void on_updateDataDirection(int index);
+  void on_updateMasterBaudrate(int index);
+  void on_updateTopicMode(int index);
 private:
   Ui::TabDxl *ui;
 };

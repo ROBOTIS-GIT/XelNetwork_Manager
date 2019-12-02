@@ -12,14 +12,17 @@
 #include "qtcsv/variantdata.h"
 
 
-#define XEL_BAUDRATE_ROW                4
-#define XEL_BAUDRATE_COL                6
+#define XEL_BAUDRATE_ROW    4
+#define XEL_BAUDRATE_COL    6
 
-#define XEL_DATA_TYPE_ROW               5
-#define XEL_DATA_TYPE_COL               6
+#define MASTER_XEL_BAUDRATE_ROW    9
+#define MASTER_XEL_BAUDRATE_COL    6
 
-#define XEL_DATA_DIRECTION_ROW          8
-#define XEL_DATA_DIRECTION_COL          6
+#define XEL_MSG_TYPE_ROW    7
+#define XEL_MSG_TYPE_COL    6
+
+#define XEL_TOPIC_MODE_ROW  8
+#define XEL_TOPIC_MODE_COL  6
 
 
 // Protocol version
@@ -27,7 +30,7 @@
 
 // Default setting
 #define DXL_ID                          11                   // Dynamixel ID: 1
-#define BAUDRATE                        3000000
+#define BAUDRATE                        1000000
 #define DEVICENAME                      "/dev/ttyACM0"      // Check which port is being used on your controller
 
 
@@ -55,28 +58,29 @@ typedef struct
 
 enum XEL_MODEL_NUMBER
 {
-  SENSOR_XEL = 460,
-  POWER_XEL = 462,
-  COMM_XEL = 464
+  SENSOR_XEL = 0x5040, //20544
+  POWER_XEL = 0x5041, //20545
+  COMMXEL_W = 0x5042, //20546
+  COMM_XEL = 0x5043 //20547
 };
 
-static DxlControlTable CtSensorXel[] =
+static DxlControlTable CtSensorXelDefault[] =
 {
   {"CON", "0",    "Model_Number",          "2",    "uint16_t",    "R" },
   {"CON", "2",    "Model_Info",            "4",    "uint32_t",    "R" },
   {"CON", "6",    "Firmware_Version",      "1",    "uint8_t",     "R" },
-  {"EEP", "7",    "ID",                    "1",    "uint8_t",     "RW"},
-  {"EEP", "8",    "Baud",                  "1",    "uint8_t",     "RW"},
+  {"RAM", "7",    "ID",                    "1",    "uint8_t",     "RW"},
+  {"RAM", "8",    "Baud",                  "1",    "uint8_t",     "RW"},
+  {"RAM", "9",    "Protocol ver",          "1",    "uint8_t",     "RW"},
 
-  {"EEP", "32",   "XEL_DATA_TYPE",         "1",    "uint8_t",     "RW"},
-  {"EEP", "33",   "XEL_DATA_HZ",           "4",    "uint32_t",    "RW"},
-  {"EEP", "37",   "XEL_DATA_NAME",         "32",    "str_t",      "RW"},
-  {"EEP", "69",   "XEL_DATA_DIRECTION",    "1",    "uint8_t",     "RW"},
-  {"RAM", "70",   "XEL_DATA_ADDR",         "2",    "uint16_t",    "R"},
-  {"RAM", "72",   "XEL_DATA_LENGTH",       "1",    "uint8_t",     "R"},
-  {"RAM", "128",  "XEL_DATA",              "4",    "uint32_t",    "RW"},
+  {"CON", "10",   "Topic name",            "16",   "str_t",       "R" },
+  {"CON", "26",   "Topic type",            "1",    "uint8_t",     "R" },
+  {"CON", "27",   "Topic mode",            "1",    "uint8_t",     "R" },
+  {"CON", "28",   "Interval(ms) to pub",   "2",    "uint16_t",    "R" },
+  {"CON", "30",   "Data address",          "2",    "uint16_t",    "R" },
+  {"CON", "32",   "Next item address",     "2",    "uint16_t",    "R" },
 
-  {"",    "",     "",                      "",     "",            ""}
+  {"",    "",     "",                      "",     "",            ""  }
 };
 
 static DxlControlTable CtPowerXel[] =
@@ -87,15 +91,15 @@ static DxlControlTable CtPowerXel[] =
   {"EEP", "7",    "ID",                    "1",    "uint8_t",     "RW"},
   {"EEP", "8",    "Baud",                  "1",    "uint8_t",     "RW"},
 
-  {"EEP", "32",   "XEL_DATA_TYPE",         "1",    "uint8_t",     "R"},
+  {"EEP", "32",   "XEL_DATA_TYPE",         "1",    "uint8_t",     "R" },
   {"EEP", "33",   "XEL_DATA_HZ",           "4",    "uint32_t",    "RW"},
   {"EEP", "37",   "XEL_DATA_NAME",         "32",   "str_t",       "RW"},
-  {"EEP", "69",   "XEL_DATA_DIRECTION",    "1",    "uint8_t",     "R"},
-  {"RAM", "70",   "XEL_DATA_ADDR",         "2",    "uint16_t",    "R"},
-  {"RAM", "72",   "XEL_DATA_LENGTH",       "1",    "uint8_t",     "R"},
-  {"RAM", "128",  "XEL_DATA",              "4",    "uint32_t",    "R"},
+  {"EEP", "69",   "XEL_DATA_DIRECTION",    "1",    "uint8_t",     "R" },
+  {"RAM", "70",   "XEL_DATA_ADDR",         "2",    "uint16_t",    "R" },
+  {"RAM", "72",   "XEL_DATA_LENGTH",       "1",    "uint8_t",     "R" },
+  {"RAM", "128",  "XEL_DATA",              "4",    "uint32_t",    "R" },
 
-  {"",    "",     "",                      "",     "",            ""}
+  {"",    "",     "",                      "",     "",            ""  }
 };
 
 static DxlControlTable CtCommXel[] =
@@ -110,12 +114,34 @@ static DxlControlTable CtCommXel[] =
   {"EEP", "15",   "Ethernet DHCP enable",  "1",    "uint8_t",     "RW"},
   {"EEP", "80",   "Ethernet remote IP",    "16",   "str_t",       "RW"},
   {"EEP", "96",   "Ethernet remote port",  "2",    "uint16_t",    "RW"},
-  {"RAM", "98",   "Ethernet assigned IP",  "16",   "str_t",       "R"},
+  {"RAM", "98",   "Ethernet assigned IP",  "16",   "str_t",       "R" },
   {"EEP", "128",  "Node name",             "30",   "str_t",       "RW"},
 
-  {"",    "",     "",                      "",     "",            ""}
+  {"",    "",     "",                      "",     "",            ""  }
 };
 
+static DxlControlTable CtCommXel_W[] =
+{
+  {"CON", "0",    "Model Number",              "2",    "uint16_t",    "R" },
+  {"CON", "2",    "Model Info",                "4",    "uint32_t",    "R" },
+  {"CON", "6",    "Firmware Version",          "1",    "uint8_t",     "R" },
+  {"CON", "7",    "ID",                        "1",    "uint8_t",     "R" },
+  {"EEP", "8",    "Baudrate",                  "1",    "uint8_t",     "RW"},
+
+  {"EEP", "10",   "ROS2 node name",            "32",   "str_t",       "RW"},
+  {"EEP", "50",   "Auto scan start ID",        "1",    "uint8_t",     "RW"},
+  {"EEP", "51",   "Auto scan end ID",          "1",    "uint8_t",     "RW"},
+  {"EEP", "52",   "Auto scan interval(ms)",    "4",    "uint32_t",    "RW"},
+
+  {"EEP", "58",   "DXL Master baudrate",       "1",    "uint8_t",     "RW"},
+  {"EEP", "59",   "DXL Master protocol ver",   "1",    "uint8_t",     "RW"},
+  {"EEP", "60",   "WiFi AP SSID",              "32",   "str_t",       "RW"},
+  {"EEP", "92",   "WiFi AP SSID P/W",          "32",   "str_t",       "RW"},
+  {"EEP", "124",  "Micro-XRCE-DDS Agent IP",   "16",   "str_t",       "RW"},
+  {"EEP", "140",  "Micro-XRCE-DDS Agent Port", "2",    "uint16_t",    "RW"},
+
+  {"",    "",     "",                          "",     "",            ""  }
+};
 
 static DxlControlTable CtDynamicXel[] =
 {
@@ -130,6 +156,8 @@ static DxlControlTable CtDynamicXel[] =
   {"",    "",     "",                      "",     "",            ""}
 };
 
+
+
 static const QString BAUDRATE_STRING[] =
 {
   "9600",
@@ -137,48 +165,41 @@ static const QString BAUDRATE_STRING[] =
   "115200",
   "1000000",
   "2000000",
-  "3000000",
-  "4000000",
-  "4500000",
+//  "3000000",
+//  "4000000",
+//  "4500000",
 
   ""
 };
 
-static const QString DATA_TYPE_STRING[] =
+static const QString MSG_TYPE_STRING[] =
 {
-  "BOOLEAN",
-  "CHAR",
-  "INT8",
-  "UINT8",
-  "INT16",
-  "UINT16",
-  "INT32",
-  "UINT32",
-  "INT64",
-  "UINT64",
-  "FLOAT32",
-  "FLOAT64",
-  "MILLIS",
-  "LED",
-  "ANALOG0",
-  "ANALOG1",
-  "ANALOG2",
-  "ANALOG3",
-  "GPIO0",
-  "GPIO1",
-  "GPIO2",
-  "GPIO3",
-  "POWER",
-  "IMU",
-  "JOYSTICK",
+  "std_msgs::Bool",
+  "std_msgs::Char",
+  "std_msgs::Int8",
+  "std_msgs::Int16",
+  "std_msgs::Int32",
+  "std_msgs::Int64",
+  "std_msgs::UInt8",
+  "std_msgs::UInt16",
+  "std_msgs::UInt32",
+  "std_msgs::UInt64",
+  "std_msgs::Float32",
+  "std_msgs::Float64",
+
+  "geometry_msgs::Point",
+  "geometry_msgs::Vector3",
+  "geometry_msgs::Quaternion",
+  "geometry_msgs::Twist",
+  "geometry_msgs::Pose",
 
   ""
 };
 
-static const QString DATA_DIRECTION_STRING[] =
+static const QString TOPIC_MODE_STRING[] =
 {
-  "SEND",
-  "RECEIVE",
+  "Subscriber",
+  "Publisher",
 
   ""
 };
@@ -197,11 +218,14 @@ TabDxl::TabDxl(QWidget *parent) :
   log_debug->setEnabled(true);
   ui->gridLayout_op3_log_debug->addWidget(log_debug);
 
-//  const auto infos = QSerialPortInfo::availablePorts();
-//  for (const QSerialPortInfo &info : infos)
-//  {
-//    ui->comboBoxSerialPort->addItem(info.portName());
-//  }
+  const auto infos = QSerialPortInfo::availablePorts();
+  for (const QSerialPortInfo &info : infos)
+  {
+    ui->comboBoxSerialPort->addItem(info.portName());
+  }
+
+  ui->comboBoxProtocolVersion->addItem("1.0");
+  ui->comboBoxProtocolVersion->addItem("2.0");
 
   while(BAUDRATE_STRING[index].length() != 0)
   {
@@ -224,12 +248,12 @@ TabDxl::TabDxl(QWidget *parent) :
   drawControlTable(0);
 }
 
-void TabDxl::on_updateDataType(int index)
+void TabDxl::on_updateMsgType(int index)
 {
-  log_debug->printf("update DataType %d\n", index);
+  log_debug->printf("update Msg type %d\n", index);
 
-  ui->tableWidget->item(XEL_DATA_TYPE_ROW, XEL_DATA_TYPE_COL)->setText(QVariant(index).toString());
-  on_tableWidget_cellChanged(XEL_DATA_TYPE_ROW, XEL_DATA_TYPE_COL);
+  ui->tableWidget->item(XEL_MSG_TYPE_ROW, XEL_MSG_TYPE_COL)->setText(QVariant(index).toString());
+  on_tableWidget_cellChanged(XEL_MSG_TYPE_ROW, XEL_MSG_TYPE_COL);
 }
 
 void TabDxl::on_updateBaudrate(int index)
@@ -240,12 +264,20 @@ void TabDxl::on_updateBaudrate(int index)
   on_tableWidget_cellChanged(XEL_BAUDRATE_ROW, XEL_BAUDRATE_COL);
 }
 
-void TabDxl::on_updateDataDirection(int index)
+void TabDxl::on_updateMasterBaudrate(int index)
 {
-  log_debug->printf("update DataDirection %d\n", index);
+  log_debug->printf("update Master Baudrate %d\n", index);
 
-  ui->tableWidget->item(XEL_DATA_DIRECTION_ROW, XEL_DATA_DIRECTION_COL)->setText(QVariant(index).toString());
-  on_tableWidget_cellChanged(XEL_DATA_DIRECTION_ROW, XEL_DATA_DIRECTION_COL);
+  ui->tableWidget->item(MASTER_XEL_BAUDRATE_ROW, MASTER_XEL_BAUDRATE_COL)->setText(QVariant(index).toString());
+  on_tableWidget_cellChanged(MASTER_XEL_BAUDRATE_ROW, MASTER_XEL_BAUDRATE_COL);
+}
+
+void TabDxl::on_updateTopicMode(int index)
+{
+  log_debug->printf("update Topic mode %d\n", index);
+
+  ui->tableWidget->item(XEL_TOPIC_MODE_ROW, XEL_TOPIC_MODE_COL)->setText(QVariant(index).toString());
+  on_tableWidget_cellChanged(XEL_TOPIC_MODE_ROW, XEL_TOPIC_MODE_COL);
 }
 
 TabDxl::~TabDxl()
@@ -256,13 +288,20 @@ TabDxl::~TabDxl()
 void TabDxl::setDxlPortString(QString port_string)
 {
   dxl_port_string = port_string;
-  ui->lineEdit_port->setText(port_string);
+  //ui->lineEdit_port->setText(port_string);
+  ui->comboBoxSerialPort->setCurrentText(port_string);
 }
 
 void TabDxl::setDxlIdString(QString id_string)
 {
   dxl_id_string = id_string;
   ui->lineEdit_id->setText(id_string);
+}
+
+void TabDxl::setDxlProtocolIdnex(int protocol_index)
+{
+  dxl_protocol_index = protocol_index;
+  ui->comboBoxProtocolVersion->setCurrentIndex(protocol_index);
 }
 
 void TabDxl::setDxlBaudIdnex(int buad_index)
@@ -330,7 +369,7 @@ QString TabDxl::getControlValueString(uint8_t *p_data, QString type_string)
 bool TabDxl::getDxlDump(uint16_t addr, uint8_t *p_data, uint16_t len)
 {
   dynamixel::PortHandler *portHandler = dynamixel::PortHandler::getPortHandler(dxl_port_string.toLocal8Bit().data());
-  dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(PROTOCOL_VERSION);
+  dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(dxl_protocol_index==1?2.0:1.0);
 
   uint8_t  dxl_error       = 0;
   int      dxl_comm_result = COMM_TX_FAIL;
@@ -362,11 +401,7 @@ bool TabDxl::getDxlDump(uint16_t addr, uint8_t *p_data, uint16_t len)
   dxl_comm_result = packetHandler->readTxRx(portHandler, dxl_id, addr, len, data, &dxl_error);
   if (dxl_comm_result == COMM_SUCCESS)
   {
-    if (dxl_error != 0)
-      packetHandler->printRxPacketError(dxl_error);
-
-    if (dxl_id != BROADCAST_ID)
-    {
+    if (dxl_error == 0 && dxl_id != BROADCAST_ID){
       log_debug->printf("\n");
       for (int i = addr; i < addr+len; i++)
       {
@@ -376,6 +411,9 @@ bool TabDxl::getDxlDump(uint16_t addr, uint8_t *p_data, uint16_t len)
       log_debug->printf("\n");
 
       ret = true;
+    }else{
+      packetHandler->printRxPacketError(dxl_error);
+      log_debug->printf("\n Error occured!! [code: %03d] \n\n", dxl_error);
     }
   }
   else
@@ -422,7 +460,7 @@ bool TabDxl::write(dynamixel::PortHandler *portHandler, dynamixel::PacketHandler
 bool TabDxl::dxlWrite(uint16_t addr, uint16_t length, uint8_t *p_data)
 {
   dynamixel::PortHandler *portHandler = dynamixel::PortHandler::getPortHandler(dxl_port_string.toLocal8Bit().data());
-  dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(PROTOCOL_VERSION);
+  dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(dxl_protocol_index==1?2.0:1.0);
 
 //  int dxl_comm_result = COMM_TX_FAIL;             // Communication result
 //  uint8_t dxl_error = 0;                          // Dynamixel error
@@ -471,16 +509,14 @@ bool TabDxl::dxlWrite(uint16_t addr, uint16_t length, uint8_t *p_data)
 void TabDxl::on_buttonPing_clicked()
 {
   dynamixel::PortHandler *portHandler = dynamixel::PortHandler::getPortHandler(dxl_port_string.toLocal8Bit().data());
-  dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(PROTOCOL_VERSION);
+  dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(dxl_protocol_index==1?2.0:1.0);
 
   int dxl_comm_result = COMM_TX_FAIL;             // Communication result
-
   int dxl_baud;
 
-  std::vector<uint8_t> ids;                       // Dynamixel data storages
-  uint16_t model_nums[253];                              // Dynamixel Models storage
-
   dxl_baud = (uint32_t)ui->comboBox_baudrate->currentText().toInt();
+
+  log_debug->printf("%s\r\n", dxl_port_string.toStdString().c_str());
 
   // Open port
   if (portHandler->openPort())
@@ -508,35 +544,28 @@ void TabDxl::on_buttonPing_clicked()
     return;
   }
 
-  // Try to broadcast ping the Dynamixel
-  dxl_comm_result = packetHandler->broadcastPing(portHandler, ids);
-  if (dxl_comm_result != COMM_SUCCESS)
+  ui->tableWidget_ID->clearContents();
+  ui->tableWidget_ID->setRowCount(0);
+
+  int connected_xel_cnt = 0;
+  int row;
+  uint16_t model_num;
+  QString model_num_str;
+  for(uint8_t id = 0; id < 253; id++)
   {
-    packetHandler->printTxRxResult(dxl_comm_result);
-    log_debug->printf("Faied \n");
-  }
-  else
-  {
-    log_debug->printf("Detected Dynamixel : \n");
-    for (int i = 0; i < (int)ids.size(); i++)
-    {
-      dxl_comm_result = packetHandler->read2ByteTxRx(portHandler, ids.at(i), 0, &model_nums[i]);
-      log_debug->printf("[ID:%03d]\n", ids.at(i));
-    }
+    dxl_comm_result = packetHandler->ping(portHandler, id, &model_num);
 
-    ui->tableWidget_ID->clearContents();
+    if (dxl_comm_result == COMM_SUCCESS){
+      log_debug->printf("Detected XEL : ");
+      log_debug->printf("[ID:%03d] \n", id);
+      connected_xel_cnt++;
 
-    for (int i=0; i< (int)ids.size(); i++)
-    {
-      int row = ui->tableWidget_ID->rowCount();
-
-      if (row < (int)ids.size())
-      {
+      row = ui->tableWidget_ID->rowCount();
+      if(row < connected_xel_cnt){
         ui->tableWidget_ID->insertRow(row);
       }
 
-      QString model_num_str;
-      switch(model_nums[i])
+      switch(model_num)
       {
       case SENSOR_XEL:
         model_num_str = "SensorXEL";
@@ -547,19 +576,22 @@ void TabDxl::on_buttonPing_clicked()
       case COMM_XEL:
         model_num_str = "CommXEL";
         break;
+      case COMMXEL_W:
+        model_num_str = "CommXEL-W";
+        break;
       default:
         model_num_str = "DYNAMIXEL";
         break;
       }
 
-      auto tbl_id = new QTableWidgetItem(QVariant(ids.at(i)).toString());
+      auto tbl_id = new QTableWidgetItem(QVariant(id).toString());
       auto tbl_model_num = new QTableWidgetItem(model_num_str);
 
       tbl_id->setTextAlignment(Qt::AlignCenter);
       tbl_model_num->setTextAlignment(Qt::AlignCenter);
 
-      ui->tableWidget_ID->setItem(i, 0, tbl_id);
-      ui->tableWidget_ID->setItem(i, 1, tbl_model_num);
+      ui->tableWidget_ID->setItem(row, 0, tbl_id);
+      ui->tableWidget_ID->setItem(row, 1, tbl_model_num);
     }
   }
 
@@ -570,14 +602,11 @@ void TabDxl::on_buttonPing_clicked()
 
 void TabDxl::on_buttonReadData_clicked()
 {
-  uint32_t dxl_buf[1024];
-  uint8_t *p_dxl_buf;
-
-  p_dxl_buf = (uint8_t *)dxl_buf;
+  uint8_t dxl_buf[1024*4];
 
   dxl_write_enable = false;
 
-  if( getDxlDump(0, p_dxl_buf, 146) == false ) return;
+  if( getDxlDump(0, dxl_buf, 149) == false ) return;
 
   int addr;
   QString type_string;
@@ -589,7 +618,7 @@ void TabDxl::on_buttonReadData_clicked()
   {
     addr = ui->tableWidget->item(i,1)->text().toInt();
     type_string = ui->tableWidget->item(i,4)->text();
-    item_string = getControlValueString(&p_dxl_buf[addr], type_string);
+    item_string = getControlValueString(&dxl_buf[addr], type_string);
 
     //log_debug->printf("addr %d\n", addr);
     //log_debug->printString(type_string + "\n");
@@ -608,16 +637,26 @@ void TabDxl::on_buttonReadData_clicked()
     case POWER_XEL: //powerXel
     {
       QComboBox *data_type_combo;
-      data_type_combo = (QComboBox *)ui->tableWidget->cellWidget(XEL_DATA_TYPE_ROW, XEL_DATA_TYPE_COL);
-      data_type_combo->setCurrentIndex(ui->tableWidget->item(XEL_DATA_TYPE_ROW, XEL_DATA_TYPE_COL)->text().toInt());
+      data_type_combo = (QComboBox *)ui->tableWidget->cellWidget(XEL_MSG_TYPE_ROW, XEL_MSG_TYPE_COL);
+      data_type_combo->setCurrentIndex(ui->tableWidget->item(XEL_MSG_TYPE_ROW, XEL_MSG_TYPE_COL)->text().toInt());
 
       QComboBox *data_direction_combo;
-      data_direction_combo = (QComboBox *)ui->tableWidget->cellWidget(XEL_DATA_DIRECTION_ROW, XEL_DATA_DIRECTION_COL);
-      data_direction_combo->setCurrentIndex(ui->tableWidget->item(XEL_DATA_DIRECTION_ROW, XEL_DATA_DIRECTION_COL)->text().toInt());
+      data_direction_combo = (QComboBox *)ui->tableWidget->cellWidget(XEL_TOPIC_MODE_ROW, XEL_TOPIC_MODE_COL);
+      data_direction_combo->setCurrentIndex(ui->tableWidget->item(XEL_TOPIC_MODE_ROW, XEL_TOPIC_MODE_COL)->text().toInt());
     }
       break;
 
     case COMM_XEL: //commXel
+      break;
+
+    case COMMXEL_W: //commXel-W
+      QComboBox *data_type_combo;
+      data_type_combo = (QComboBox *)ui->tableWidget->cellWidget(XEL_BAUDRATE_ROW, XEL_BAUDRATE_COL);
+      data_type_combo->setCurrentIndex(ui->tableWidget->item(XEL_BAUDRATE_ROW, XEL_BAUDRATE_COL)->text().toInt());
+
+      QComboBox *data_direction_combo;
+      data_direction_combo = (QComboBox *)ui->tableWidget->cellWidget(MASTER_XEL_BAUDRATE_ROW, MASTER_XEL_BAUDRATE_COL);
+      data_direction_combo->setCurrentIndex(ui->tableWidget->item(MASTER_XEL_BAUDRATE_ROW, MASTER_XEL_BAUDRATE_COL)->text().toInt());
       break;
 
     default: //DXL
@@ -628,100 +667,64 @@ void TabDxl::on_buttonReadData_clicked()
 }
 
 
-#include "xel_loader/include/download.h"
-
 void TabDxl::on_buttonUpload_clicked()
 {
-//  QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
-//                                                        "",
-//                                                        tr("*.bin"));
-//  char filename_char_ptr[1024];
-//  strcpy(filename_char_ptr, (char*)fileName.toStdString().c_str());
-//  log_debug->printString(fileName);
-//  fprintf(stderr, "%s",filename_char_ptr);
+  QDir program_dir;
+#if defined (__WIN32__) || (__WIN64__)
+  QString program_name = "/xel_loader/xel_loader.exe";
+#else //__linux__
+  QString program_name = "/xel_loader/xel_loader";
+#endif
+  QString program_path = program_dir.currentPath()+program_name;
 
-//  char *argv[] =
-//  {
-//    "/dev/ttyACM0",
-//    "57600",
-//    "0x08040000",
-//    filename_char_ptr,
-//    "1",
-//    "1"
-//  };
+  QString fileName = QFileDialog::getOpenFileName(this, tr("Open File"),
+                                                        "",
+                                                        tr("*.bin"));
 
-//  download(6, argv);
+  QStringList args_name = {" - port name = ", " - baudrate = ", " - F/W address = ", " - binary file path = ", " - option1 = ", " - option2 = "};
+  QStringList arguments = {dxl_port_string, "1000000", "0x08003000", fileName, "1", "1"};
 
-//  QFile file(fileName);
-//  QByteArray  task_buffer;
-//  int file_length;
+  log_debug->printf("\r\n\r\n ======= Start Upload ======= \r\n");
+  for(int i=0; i<arguments.size(); i++){
+    log_debug->printf(args_name.at(i).toStdString().c_str());
+    log_debug->printf(arguments.at(i).toStdString().c_str());
+    log_debug->printf("\r\n");
+  }
+  log_debug->printf(" ======= Upload End ======= \r\n\r\n");
 
-//  if (!file.open(QIODevice::ReadOnly))
-//  {
-//    log_debug->printf("\n");
-//    log_debug->printString(fileName);
-//    return;
-//  }
-
-//  task_buffer = file.readAll();
-//  file_length = task_buffer.size();
-
-//  log_debug->printf("length : %d\n", file_length);
-
-    //    char *p_data = task_buffer.data();
-    //    uint32_t pre_time;
-
-    //    pre_time = millis();
-    //    dxlcmdMemoryErase(&dxl_ttl, 200, 0x8010000, file_length, &err_code, 10000);
-
-    //    if (err_code == OK)
-    //    {
-    //    }
-    //    else
-    //    {
-    //      log_debug->printf("erase error : %d\n", err_code);
-    //    }
-    //    log_debug->printf("erase time %d ms\n", millis()-pre_time);
-
-
-    //    uint32_t tx_length;
-    //    uint32_t sent_length;
-
-    //    tx_length = 0;
-    //    sent_length = 0;
-
-    //    pre_time = millis();
-
-    //    while(sent_length < file_length)
-    //    {
-    //      tx_length = file_length - sent_length;
-
-    //      if (tx_length > 512) tx_length = 512;
-
-
-    //      dxlcmdMemoryWrite(&dxl_ttl, 200, 0x8010000 + sent_length, (uint8_t *)&p_data[sent_length], tx_length, &err_code, 1000);
-
-    //      if (err_code == OK)
-    //      {
-    //      }
-    //      else
-    //      {
-    //        log_debug->printf("write error : %d\n", err_code);
-    //        break;
-    //      }
-    //      sent_length += tx_length;
-    //    }
-    //    log_debug->printf("write en : %d ms\n", millis()-pre_time);
+  QProcess process;
+  process.start(program_path, arguments);
+  process.waitForFinished(-1);
 }
 
-void TabDxl::on_lineEdit_port_textChanged(const QString &arg1)
+void TabDxl::on_buttonPortRefresh_clicked()
 {
-  dxl_port_string = arg1;
+  const auto infos = QSerialPortInfo::availablePorts();
+  ui->comboBoxSerialPort->clear();
+  for (const QSerialPortInfo &info : infos)
+  {
+    ui->comboBoxSerialPort->addItem(info.portName());
+  }
 }
+
+//void TabDxl::on_lineEdit_port_textChanged(const QString &arg1)
+//{
+//  dxl_port_string = arg1;
+//}
 
 void TabDxl::on_lineEdit_id_textChanged(const QString &arg1)
 {
   dxl_id_string = arg1;
+}
+
+void TabDxl::on_comboBoxSerialPort_currentTextChanged(const QString &arg1)
+{
+  dxl_port_string = arg1;
+}
+
+void TabDxl::on_comboBoxProtocolVersion_currentIndexChanged(int index)
+{
+  dxl_protocol_index = index;
 }
 
 void TabDxl::on_comboBox_baudrate_currentIndexChanged(int index)
@@ -815,6 +818,10 @@ void TabDxl::on_tableWidget_ID_doubleClicked(const QModelIndex &index)
     {
       selected_model_num = COMM_XEL;
     }
+    else if(model_str == "CommXEL-W")
+    {
+      selected_model_num = COMMXEL_W;
+    }
     else
     {
       selected_model_num = 0;
@@ -838,7 +845,7 @@ void TabDxl::drawControlTable(int model_num)
   switch(model_num)
   {
     case SENSOR_XEL: //sensorXel
-      p_table = CtSensorXel;
+      p_table = CtSensorXelDefault;
       break;
 
     case POWER_XEL: //powerXel
@@ -847,6 +854,10 @@ void TabDxl::drawControlTable(int model_num)
 
     case COMM_XEL: //commXel
       p_table = CtCommXel;
+      break;
+
+    case COMMXEL_W: //commXel-W
+      p_table = CtCommXel_W;
       break;
 
     default: //DXL
@@ -917,31 +928,56 @@ void TabDxl::drawControlTable(int model_num)
       /* DATA_TYPE COMBO*/
       index = 0;
       QComboBox *data_type_box = new QComboBox;
-      while(DATA_TYPE_STRING[index] != nullptr)
+      while(MSG_TYPE_STRING[index] != nullptr)
       {
-        data_type_box->addItem(DATA_TYPE_STRING[index++]);
+        data_type_box->addItem(MSG_TYPE_STRING[index++]);
       }
-      connect(data_type_box, SIGNAL(currentIndexChanged(int)), this, SLOT(on_updateDataType(int)));
-      ui->tableWidget->setCellWidget(XEL_DATA_TYPE_ROW,  XEL_DATA_TYPE_COL, data_type_box);
+      connect(data_type_box, SIGNAL(currentIndexChanged(int)), this, SLOT(on_updateMsgType(int)));
+      ui->tableWidget->setCellWidget(XEL_MSG_TYPE_ROW,  XEL_MSG_TYPE_COL, data_type_box);
 
       /* DATA_DIRECTION COMBO*/
       index = 0;
       QComboBox *data_direction_box = new QComboBox;
-      while(DATA_DIRECTION_STRING[index] != nullptr)
+      while(TOPIC_MODE_STRING[index] != nullptr)
       {
-        data_direction_box->addItem(DATA_DIRECTION_STRING[index++]);
+        data_direction_box->addItem(TOPIC_MODE_STRING[index++]);
       }
-      connect(data_direction_box, SIGNAL(currentIndexChanged(int)), this, SLOT(on_updateDataDirection(int)));
-      ui->tableWidget->setCellWidget(XEL_DATA_DIRECTION_ROW,  XEL_DATA_DIRECTION_COL, data_direction_box);
+      connect(data_direction_box, SIGNAL(currentIndexChanged(int)), this, SLOT(on_updateTopicMode(int)));
+      ui->tableWidget->setCellWidget(XEL_TOPIC_MODE_ROW,  XEL_TOPIC_MODE_COL, data_direction_box);
     }
       break;
 
     case COMM_XEL: //commXel
+      break;
+    case COMMXEL_W: //commXel
+    {
+      /* BAUDRATE COMBO*/
+      index = 0;
+      QComboBox *baudrate_box = new QComboBox;
+      while(BAUDRATE_STRING[index] != nullptr)
+      {
+        baudrate_box->addItem(BAUDRATE_STRING[index++]);
+      }
+      connect(baudrate_box, SIGNAL(currentIndexChanged(int)), this, SLOT(on_updateBaudrate(int)));
+      ui->tableWidget->setCellWidget(XEL_BAUDRATE_ROW,  XEL_BAUDRATE_COL, baudrate_box);
+
+      /* Master BAUDRATE COMBO*/
+      index = 0;
+      QComboBox *master_baudrate_box = new QComboBox;
+      while(BAUDRATE_STRING[index] != nullptr)
+      {
+        master_baudrate_box->addItem(BAUDRATE_STRING[index++]);
+      }
+      connect(master_baudrate_box, SIGNAL(currentIndexChanged(int)), this, SLOT(on_updateMasterBaudrate(int)));
+      ui->tableWidget->setCellWidget(MASTER_XEL_BAUDRATE_ROW,  MASTER_XEL_BAUDRATE_COL, master_baudrate_box);
+    }
+      break;
     default:
       break;
   }
 
-  ui->lineEdit_port->setText(dxl_port_string);
+  //ui->lineEdit_port->setText(dxl_port_string);
+  ui->comboBoxSerialPort->setCurrentText(dxl_port_string);
 
   getControlValueString(nullptr, "int8_t");
 }

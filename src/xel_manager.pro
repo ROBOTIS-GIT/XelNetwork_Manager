@@ -30,14 +30,6 @@ SOURCES += \
     DynamixelSDK/src/dynamixel_sdk_$${DXLSDK_PORT}/port_handler_$${DXLSDK_PORT}.cpp \
     tab_terminal.cpp \
     tab_xel.cpp \
-    xel_loader/src/boot.c \
-    xel_loader/src/cmd.c \
-    xel_loader/src/download.c \
-    xel_loader/src/uart_linux.c \
-    xel_loader/src/uart_win.c \
-    xel_loader/src/util.c \
-    xel_loader/src/util_linux.c \
-    xel_loader/src/util_win.c
 
 INCLUDEPATH += DynamixelSDK/include \
     xel_loader/include \
@@ -63,12 +55,6 @@ HEADERS += \
     DynamixelSDK/include/dynamixel_sdk.h \
     tab_terminal.h \
     tab_xel.h \
-    xel_loader/include/boot.h \
-    xel_loader/include/cmd.h \
-    xel_loader/include/def.h \
-    xel_loader/include/download.h \
-    xel_loader/include/uart.h \
-    xel_loader/include/util.h
 
 FORMS += \
     mainwindow.ui \

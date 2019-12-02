@@ -298,11 +298,7 @@
     </rect>
    </property>
    <property name="text">
-    <string/>
-   </property>
-   <property name="icon">
-    <iconset>
-     <normaloff>C:/Users/Kei/Downloads/refresh.jpg</normaloff>C:/Users/Kei/Downloads/refresh.jpg</iconset>
+    <string>Re</string>
    </property>
   </widget>
   <zorder>layoutWidget</zorder>

@@ -287,7 +287,11 @@ TabDxl::~TabDxl()
 
 void TabDxl::setDxlPortString(QString port_string)
 {
+#if defined (__WIN32__) || (__WIN64__)
   dxl_port_string = port_string;
+#else //__linux__
+  dxl_port_string = "/dev/"+port_string;
+#endif
   //ui->lineEdit_port->setText(port_string);
   ui->comboBoxSerialPort->setCurrentText(port_string);
 }
@@ -719,7 +723,11 @@ void TabDxl::on_lineEdit_id_textChanged(const QString &arg1)
 
 void TabDxl::on_comboBoxSerialPort_currentTextChanged(const QString &arg1)
 {
+#if defined (__WIN32__) || (__WIN64__)
   dxl_port_string = arg1;
+#else //__linux__
+  dxl_port_string = "/dev/"+arg1;
+#endif
 }
 
 void TabDxl::on_comboBoxProtocolVersion_currentIndexChanged(int index)

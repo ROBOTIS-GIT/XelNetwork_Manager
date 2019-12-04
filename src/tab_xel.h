@@ -40,6 +40,7 @@ public:
 
 private slots:
   void on_buttonPing_clicked();
+  void on_buttonPings_clicked();
   void on_buttonReadData_clicked();
   void on_buttonUpload_clicked();
   void on_buttonPortRefresh_clicked();

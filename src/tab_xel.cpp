@@ -157,6 +157,20 @@ static DxlControlTable CtDynamicXel[] =
 };
 
 
+static const QString OS_BAUDRATE_STRING[] =
+{
+  "9600",
+  "57600",
+  "115200",
+  "1000000",
+//  "2000000",
+//  "3000000",
+//  "4000000",
+//  "4500000",
+
+  ""
+};
+
 
 static const QString BAUDRATE_STRING[] =
 {
@@ -227,9 +241,9 @@ TabDxl::TabDxl(QWidget *parent) :
   ui->comboBoxProtocolVersion->addItem("1.0");
   ui->comboBoxProtocolVersion->addItem("2.0");
 
-  while(BAUDRATE_STRING[index].length() != 0)
+  while(OS_BAUDRATE_STRING[index].length() != 0)
   {
-    ui->comboBox_baudrate->addItem(BAUDRATE_STRING[index++]);
+    ui->comboBox_baudrate->addItem(OS_BAUDRATE_STRING[index++]);
   }
   ui->comboBox_baudrate->setCurrentIndex(3);
 
@@ -397,7 +411,7 @@ bool TabDxl::getDxlDump(uint16_t addr, uint8_t *p_data, uint16_t len)
   // Set port baudrate
   if (portHandler->setBaudRate(dxl_baud) != true)
   {
-    log_debug->printf("Failed to change the baudrate!\n");
+    log_debug->printf("Failed to change the baudrate! (%d)\n", dxl_baud);
     log_debug->printf("Press any key to terminate...\n");
     return false;
   }
@@ -497,7 +511,7 @@ bool TabDxl::dxlWrite(uint16_t addr, uint16_t length, uint8_t *p_data)
   }
   else
   {
-    log_debug->printf("Failed to change the baudrate!\n");
+    log_debug->printf("Failed to change the baudrate! (%d)\n", dxl_baud);
     log_debug->printf("Press any key to terminate...\n");
     return false;
   }
@@ -518,7 +532,7 @@ void TabDxl::on_buttonPing_clicked()
   int dxl_comm_result = COMM_TX_FAIL;             // Communication result
   int dxl_baud;
 
-  dxl_baud = (uint32_t)ui->comboBox_baudrate->currentText().toInt();
+  dxl_baud = ui->comboBox_baudrate->currentText().toInt();
 
   log_debug->printf("%s\r\n", dxl_port_string.toStdString().c_str());
 
@@ -543,7 +557,92 @@ void TabDxl::on_buttonPing_clicked()
   }
   else
   {
-    log_debug->printf("Failed to change the baudrate!\n");
+    log_debug->printf("Failed to change the baudrate! (%d)\n", dxl_baud);
+    log_debug->printf("Press any key to terminate...\n");
+    return;
+  }
+
+  ui->tableWidget_ID->clearContents();
+  ui->tableWidget_ID->setRowCount(0);
+
+
+  uint8_t id = (uint8_t)dxl_id_string.toUInt();
+  int row = 0;
+  uint16_t model_num;
+  QString model_num_str;
+  dxl_comm_result = packetHandler->ping(portHandler, id, &model_num);
+  if (dxl_comm_result == COMM_SUCCESS){
+    log_debug->printf("Detected XEL : ");
+    log_debug->printf("[ID:%03d] \n", id);
+    ui->tableWidget_ID->insertRow(row);
+
+    switch(model_num)
+    {
+    case SENSOR_XEL:
+      model_num_str = "SensorXEL";
+      break;
+    case POWER_XEL:
+      model_num_str = "PowerXEL";
+      break;
+    case COMM_XEL:
+      model_num_str = "CommXEL";
+      break;
+    case COMMXEL_W:
+      model_num_str = "CommXEL-W";
+      break;
+    default:
+      model_num_str = "DYNAMIXEL";
+      break;
+    }
+
+    auto tbl_id = new QTableWidgetItem(QVariant(id).toString());
+    auto tbl_model_num = new QTableWidgetItem(model_num_str);
+
+    tbl_id->setTextAlignment(Qt::AlignCenter);
+    tbl_model_num->setTextAlignment(Qt::AlignCenter);
+
+    ui->tableWidget_ID->setItem(row, 0, tbl_id);
+    ui->tableWidget_ID->setItem(row, 1, tbl_model_num);
+  }
+
+  // Close port
+  portHandler->closePort();
+}
+
+void TabDxl::on_buttonPings_clicked()
+{
+  dynamixel::PortHandler *portHandler = dynamixel::PortHandler::getPortHandler(dxl_port_string.toLocal8Bit().data());
+  dynamixel::PacketHandler *packetHandler = dynamixel::PacketHandler::getPacketHandler(dxl_protocol_index==1?2.0:1.0);
+
+  int dxl_comm_result = COMM_TX_FAIL;             // Communication result
+  int dxl_baud;
+
+  dxl_baud = ui->comboBox_baudrate->currentText().toInt();
+
+  log_debug->printf("%s\r\n", dxl_port_string.toStdString().c_str());
+
+  // Open port
+  if (portHandler->openPort())
+  {
+    log_debug->printf("Succeeded to open the port!\n");
+  }
+  else
+  {
+    log_debug->printf("Failed to open the port!\n");
+    log_debug->printf("Press any key to terminate...\n");
+    return;
+  }
+
+  portHandler->setPacketTimeout(5000.0);
+
+  // Set port baudrate
+  if (portHandler->setBaudRate(dxl_baud))
+  {
+    log_debug->printf("Succeeded to change the baudrate!\n");
+  }
+  else
+  {
+    log_debug->printf("Failed to change the baudrate! (%d)\n", dxl_baud);
     log_debug->printf("Press any key to terminate...\n");
     return;
   }
@@ -921,9 +1020,9 @@ void TabDxl::drawControlTable(int model_num)
   /* BAUDRATE COMBO*/
   index = 0;
   QComboBox *baudrate_box = new QComboBox;
-  while(BAUDRATE_STRING[index] != nullptr)
+  while(OS_BAUDRATE_STRING[index] != nullptr)
   {
-    baudrate_box->addItem(BAUDRATE_STRING[index++]);
+    baudrate_box->addItem(OS_BAUDRATE_STRING[index++]);
   }
   connect(baudrate_box, SIGNAL(currentIndexChanged(int)), this, SLOT(on_updateBaudrate(int)));
   ui->tableWidget->setCellWidget(XEL_BAUDRATE_ROW,  XEL_BAUDRATE_COL, baudrate_box);
@@ -962,9 +1061,9 @@ void TabDxl::drawControlTable(int model_num)
       /* BAUDRATE COMBO*/
       index = 0;
       QComboBox *baudrate_box = new QComboBox;
-      while(BAUDRATE_STRING[index] != nullptr)
+      while(OS_BAUDRATE_STRING[index] != nullptr)
       {
-        baudrate_box->addItem(BAUDRATE_STRING[index++]);
+        baudrate_box->addItem(OS_BAUDRATE_STRING[index++]);
       }
       connect(baudrate_box, SIGNAL(currentIndexChanged(int)), this, SLOT(on_updateBaudrate(int)));
       ui->tableWidget->setCellWidget(XEL_BAUDRATE_ROW,  XEL_BAUDRATE_COL, baudrate_box);

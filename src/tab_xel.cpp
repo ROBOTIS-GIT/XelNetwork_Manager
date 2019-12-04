@@ -964,12 +964,13 @@ void TabDxl::drawControlTable(int model_num)
       break;
 
     case COMMXEL_W: //commXel-W
+    default:
       p_table = CtCommXel_W;
       break;
 
-    default: //DXL
-      p_table = CtDynamicXel;
-      break;
+//    default: //DXL
+//      p_table = CtDynamicXel;
+//      break;
   }
 
   while(p_table[index].addr.length() != 0)

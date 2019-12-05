@@ -36,7 +36,7 @@ INCLUDEPATH += DynamixelSDK/include \
     qtcsv \
     qtcsv/include
 
-QMAKE_CXXFLAGS += -Wno-unused-parameter
+QMAKE_CXXFLAGS += -std=c++0x -Wno-unused-parameter
 
 HEADERS += \
     mainwindow.h \

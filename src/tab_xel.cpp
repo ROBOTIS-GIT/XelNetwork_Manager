@@ -125,7 +125,7 @@ static DxlControlTable CtCommXel_W[] =
   {"CON", "0",    "Model Number",              "2",    "uint16_t",    "R" },
   {"CON", "2",    "Model Info",                "4",    "uint32_t",    "R" },
   {"CON", "6",    "Firmware Version",          "1",    "uint8_t",     "R" },
-  {"CON", "7",    "ID",                        "1",    "uint8_t",     "R" },
+  {"CON", "7",    "ID",                        "1",    "uint8_t",     "RW" },
   {"EEP", "8",    "Baudrate",                  "1",    "uint8_t",     "RW"},
 
   {"EEP", "10",   "ROS2 node name",            "32",   "str_t",       "RW"},
@@ -240,6 +240,7 @@ TabDxl::TabDxl(QWidget *parent) :
 
   ui->comboBoxProtocolVersion->addItem("1.0");
   ui->comboBoxProtocolVersion->addItem("2.0");
+  ui->comboBoxProtocolVersion->setCurrentIndex(1);
 
   while(OS_BAUDRATE_STRING[index].length() != 0)
   {
